@@ -169,6 +169,9 @@ elif st.session_state["authentication_status"] == False:
         st.error('Пользователь/пароль неверные')
 ################################################################################
 
+st.write('add_phone_bills')
+
+
 with st.sidebar:
     st.markdown("***")
     st.write(f'[__Показания счетчиков__](https://docs.google.com/spreadsheets/d/{meters_gs.gs_id}/edit#gid={meters_gs.page_id})')
