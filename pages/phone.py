@@ -26,7 +26,7 @@ def get_phones(phone_bills_gs:GSPage, match_gs:GSPage) -> pd.DataFrame:
     df_bills['Сумма'].replace(',','', regex=True, inplace=True)
     df_bills['Сумма'] = df_bills['Сумма'].map(pd.to_numeric)
     df = df_bills.set_index('Номер').join(df_matches.set_index('Номер')).reset_index()
-    df.columns = ['number', 'date', 'summ', 'date_eom', 'owner', 'group']
+    df.columns = ['number', 'date', 'summ', 'date_eom', 'owner', 'group', 'is_active']
     
     df = df.groupby(['number','date_eom', 'owner', 'group'])['summ'].sum().reset_index().sort_values('date_eom')
     df['prev_summ'] = df.groupby('number')['summ'].transform(lambda x: x.shift(1))
@@ -34,7 +34,9 @@ def get_phones(phone_bills_gs:GSPage, match_gs:GSPage) -> pd.DataFrame:
     df['year'] = df['date_eom'].map(lambda x: x.year)
     df['month_num'] = df['date_eom'].map(lambda x: x.month)
 
-    return df
+    df_matches.columns = ['number', 'owner', 'group', 'is_active']
+    df_matches['is_active'] = df_matches['is_active'].map(pd.to_numeric).fillna(0).map(int)
+    return df, df_matches
 
 
 
@@ -60,10 +62,9 @@ match_gs = GSPage(
                 page_name=PHONE_MATCH_NAME
             )
 
-df = get_phones(phone_bills_gs, match_gs)
+df, phones = get_phones(phone_bills_gs, match_gs)
 years = list(set(df['year']))
 
-st.title('Телефон')
 
 ################################################################################
 authenticator = auth()
@@ -86,6 +87,43 @@ with st.sidebar:
     flt_group = st_multiselect_empty(flt_year_df['group'],'Группы', ['Семья', 'Родители', 'Морозовы'])
     flt_df = flt_year_df[flt_year_df['group'].isin(flt_group)]
 
+st.title('Телефон')
+################################################################################
+# add phone bills
+
+if "disabled_phone_bill_add_but" not in st.session_state:
+    st.session_state["disabled_phone_bill_add_but"] = False
+
+if st.session_state.get("phone_bill_add_but", False):
+    st.session_state["disabled_phone_bill_add_but"] = True
+else:
+    st.session_state["disabled_phone_bill_add_but"] = False
+
+phones = phones[phones['is_active'] == 1].sort_values('number')
+df_tmp = flt_df[flt_df['date_eom']==max(flt_df['date_eom'])]
+
+form = st.empty()
+if st.button('Внести данные', key='phone_bill_add_but', disabled=not st.session_state["authentication_status"] or st.session_state["disabled_phone_bill_add_but"]):
+    form = st.form(key="add_phone_bills")
+    form.subheader('Внесите данные')
+    new_month_sel = form.date_input('выберете любую дату в рамках нужного месяца', date_eom(max(flt_year_df['date_eom'])+datetime.timedelta(days=1)), min_value=min(flt_year_df['date_eom']), max_value=date_eom(max(flt_year_df['date_eom'])+datetime.timedelta(days=1)))
+
+    bill = []
+    for number in phones['number']:
+        cur_row = df_tmp[df_tmp['number'] == number].head(1)
+        name_str = f"{cur_row['owner'].iloc[0]}"
+        date_str = f"{cur_row['date_eom'].iloc[0].strftime('%d.%m.%Y')}"
+        sum_str = f"{cur_row['summ'].iloc[0]:,.2f}"
+        bill.append((number, form.text_input(f"**{name_str}**({number}) {date_str}: **{sum_str}** руб.", key=number)))
+
+    if form.form_submit_button("Сохранить"):
+        form.empty()
+        st.session_state["phone_bill_add_but"]=False
+    if form.form_submit_button("Отменить"):
+        form.empty()
+        st.session_state["phone_bill_add_but"]=False
+################################################################################
+
 st.subheader(f"За месяц")
 
 month_sel = st.date_input('выберете любую дату в рамках нужного месяца', max(flt_year_df['date_eom']), min_value=min(flt_year_df['date_eom']), max_value=max(flt_year_df['date_eom']) )
@@ -101,6 +139,8 @@ for i in range(len(df_tmp)):
             int(df_tmp['summ'][i]),
             int(df_tmp['summ'][i] - df_tmp['prev_summ'][i]),
             delta_color="inverse")
+
+
 
 st.write('подробно')
 if st.session_state["authentication_status"]:

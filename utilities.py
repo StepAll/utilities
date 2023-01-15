@@ -118,7 +118,7 @@ def auth():
             config['preauthorized']
         )
 
-    st.session_state["name"], st.session_state["authentication_status"], st.session_state["username"] = authenticator.login('Login', 'sidebar')
+    st.session_state["name"], st.session_state["authentication_status"], st.session_state["username"] = authenticator.login('Войти', 'sidebar')
     return authenticator
 
 # st.session_state initiation
@@ -159,6 +159,7 @@ years = list(set(df_meters_by_month['year']))
 st.title('Потребление ресурсов')
 
 ################################################################################
+# auth
 authenticator = auth()
 if st.session_state["authentication_status"]:
     authenticator.logout('Выйти', 'sidebar')
@@ -168,6 +169,10 @@ elif st.session_state["authentication_status"] == False:
     with st.sidebar:
         st.error('Пользователь/пароль неверные')
 ################################################################################
+
+
+
+
 
 with st.sidebar:
     st.markdown("***")
@@ -179,8 +184,6 @@ with st.sidebar:
 flt_year_meters_by_month = df_meters_by_month[df_meters_by_month['year'].between(flt_year[0], flt_year[1])]
 flt_year_meters_by_year = flt_year_meters_by_month.groupby(['meter', 'year'])['consumption'].sum().reset_index()
 flt_year_meters_by_month_num = flt_year_meters_by_month.groupby(['meter', 'month_num'])['consumption'].mean().reset_index()
-
-
 
 st.subheader('За месяц')
 month_sel = st.date_input('выберете любую дату в рамках нужного месяца', 
