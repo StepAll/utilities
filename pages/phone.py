@@ -68,7 +68,7 @@ st.title('Телефон')
 ################################################################################
 authenticator = auth()
 if st.session_state["authentication_status"]:
-    authenticator.logout('Войти', 'sidebar')
+    authenticator.logout('Выйти', 'sidebar')
     with st.sidebar:
         st.write(f'Вы вошли как *{st.session_state["name"]}*')
 elif st.session_state["authentication_status"] == False:
