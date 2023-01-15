@@ -99,13 +99,9 @@ def get_meters(meters_gs:GSPage) -> pd.DataFrame:
     
     df_meters_by_month = pd.DataFrame(df_meters.groupby(['счетчик', 'date_eom']).agg({'показания':'max','потребление':'sum' })).reset_index().sort_values('date_eom')
     df_meters_by_month.columns = ['meter', 'date_eom', 'value', 'consumption']
-
     df_meters_by_month['prev_consumption'] = df_meters_by_month.groupby('meter')['consumption'].transform(lambda x: x.shift(1))
-
     df_meters_by_month['year'] = df_meters_by_month['date_eom'].map(lambda x: x.year)
     df_meters_by_month['month_num'] = df_meters_by_month['date_eom'].map(lambda x: x.month)
-
-
     return df_meters_by_month
 
 def auth():
@@ -124,7 +120,6 @@ def auth():
 
     st.session_state["name"], st.session_state["authentication_status"], st.session_state["username"] = authenticator.login('Login', 'sidebar')
     return authenticator
-
 
 # st.session_state initiation
 if 'authentication_status' not in st.session_state:
@@ -160,7 +155,6 @@ meters_electricity = ['ЭЛ.ЭНЕРГИЯ']
 meters_gas = ['ГАЗ']
 
 years = list(set(df_meters_by_month['year']))
-
 
 st.title('Потребление ресурсов')
 
