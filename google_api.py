@@ -15,6 +15,9 @@ class GSPage:
     gs_id:str
     page_name:str
     page_id:str
+    header_row_reserve:int = None
+    first_col_letter:str = None # e.g. A
+    last_col_letter:str = None # e.g. D
 
 
 # google api
@@ -32,6 +35,7 @@ def get_google_service(service_account_json:str, api:str='sheets'):
         return apiclient.discovery.build('drive', 'v3', credentials=credentials)
     return None
 
+    
 def get_gs_table(service, gs_id:str, gs_page_name:str) -> pd.DataFrame:
     """ Get Google Sheet's page"""
     result = service.spreadsheets().values().batchGet(spreadsheetId=gs_id, ranges=gs_page_name).execute()
@@ -39,3 +43,18 @@ def get_gs_table(service, gs_id:str, gs_page_name:str) -> pd.DataFrame:
     data = result['valueRanges'][0]['values'][1:]
     df = pd.DataFrame(data=data, columns=columns)
     return df
+
+def write_to_gs(gs:GSPage, data:list, range:str) -> None:
+    """
+    data:  [[col1, col2,col3],
+            [col1, col2,col3],
+            [col1, col2,col3],
+            [col1, col2,col3]]
+    """
+    service_account_json = gs.service_account_json
+    gs_id = gs.gs_id
+    service = get_google_service(service_account_json, api='sheets')
+    result = service.spreadsheets().values().update(
+                spreadsheetId=gs_id, range=range,
+                valueInputOption="USER_ENTERED", body={'values': data}).execute()
+    return None

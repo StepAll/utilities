@@ -5,7 +5,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-from google_api import get_google_service, get_gs_table
+from google_api import get_google_service, get_gs_table, write_to_gs
 from google_api import GSPage
 
 from utilities import fig_line_area, fig_bar
@@ -38,9 +38,6 @@ def get_phones(phone_bills_gs:GSPage, match_gs:GSPage) -> pd.DataFrame:
     df_matches['is_active'] = df_matches['is_active'].map(pd.to_numeric).fillna(0).map(int)
     return df, df_matches
 
-
-
-
 PHONE_GOOGLESHEET_ID = st.secrets['PHONE_GOOGLESHEET_ID']
 PHONE_BILLS_PAGE_ID = st.secrets['PHONE_BILLS_PAGE_ID']
 PHONE_BILLS_PAGE_NAME = st.secrets['PHONE_BILLS_PAGE_NAME']
@@ -53,18 +50,25 @@ phone_bills_gs = GSPage(
                 service_account_json=SERVICE_ACCOUNT_JSON,
                 gs_id=PHONE_GOOGLESHEET_ID,
                 page_id=PHONE_BILLS_PAGE_ID,
-                page_name=PHONE_BILLS_PAGE_NAME
+                page_name=PHONE_BILLS_PAGE_NAME,
+                header_row_reserve=1,
+                first_col_letter='A',
+                last_col_letter='C'
             )
 match_gs = GSPage(
                 service_account_json=SERVICE_ACCOUNT_JSON,
                 gs_id=PHONE_GOOGLESHEET_ID,
                 page_id=PHONE_MATCH_PAGE_ID,
-                page_name=PHONE_MATCH_NAME
+                page_name=PHONE_MATCH_NAME,
+                header_row_reserve=1
             )
 
 df, phones = get_phones(phone_bills_gs, match_gs)
-years = list(set(df['year']))
+first_empty_row_df = len(df) + 1 + phone_bills_gs.header_row_reserve
+first_col_letter = phone_bills_gs.first_col_letter
+last_col_letter = phone_bills_gs.last_col_letter
 
+years = list(set(df['year']))
 
 ################################################################################
 authenticator = auth()
@@ -88,8 +92,43 @@ with st.sidebar:
     flt_df = flt_year_df[flt_year_df['group'].isin(flt_group)]
 
 st.title('Телефон')
+
 ################################################################################
 # add phone bills
+################################################################################
+def clear_form_text():
+    for number in phones['number']:
+        st.session_state[number] = "0"
+    get_prev_month()
+    hide_form()
+
+def write_form_text():
+    phone_bills_to_write = []
+    for number in phones['number']:
+        v = st.session_state[number]
+        try:
+            v_float = float(v)
+        except ValueError:
+            v_float = 0.0
+        phone_bills_to_write.append([st.session_state["form_month_sel"].strftime('%d.%m.%Y'), number, v_float])
+
+    range = f'{first_col_letter}{first_empty_row_df}:{last_col_letter}{first_empty_row_df+len(phone_bills_to_write)-1}'
+    write_to_gs(phone_bills_gs, phone_bills_to_write, range)
+
+    clear_form_text()
+    get_prev_month()
+    hide_form()
+
+def get_prev_month():
+    st.session_state["new_month_sel"] = date_eom(st.session_state["form_month_sel"])
+    st.session_state["prev_month"]= date_eom(date_eom(st.session_state["new_month_sel"])-datetime.timedelta(days=32))
+    add_phone_bills_show_form()
+
+def add_phone_bills_show_form():
+    st.session_state["add_phone_bills_show_form"]=True
+def hide_form():
+    st.session_state["add_phone_bills_show_form"]=False
+
 
 if "disabled_phone_bill_add_but" not in st.session_state:
     st.session_state["disabled_phone_bill_add_but"] = False
@@ -99,29 +138,57 @@ if st.session_state.get("phone_bill_add_but", False):
 else:
     st.session_state["disabled_phone_bill_add_but"] = False
 
+if "new_month_sel" not in st.session_state:
+    st.session_state["new_month_sel"]= date_eom(max(flt_year_df['date_eom'])+datetime.timedelta(days=1))
+    st.session_state["prev_month"]= date_eom(date_eom(st.session_state["new_month_sel"])-datetime.timedelta(days=32))
+
+if "add_phone_bills_show_form" not in st.session_state:
+    add_phone_bills_show_form()
+
 phones = phones[phones['is_active'] == 1].sort_values('number')
-df_tmp = flt_df[flt_df['date_eom']==max(flt_df['date_eom'])]
+df_tmp = flt_df[flt_df['date_eom']==datetime.datetime.combine(st.session_state["new_month_sel"], datetime.datetime.min.time())]
+df_tmp_prev = flt_df[flt_df['date_eom']==datetime.datetime.combine(st.session_state["prev_month"], datetime.datetime.min.time())]
 
-form = st.empty()
-if st.button('Внести данные', key='phone_bill_add_but', disabled=not st.session_state["authentication_status"] or st.session_state["disabled_phone_bill_add_but"]):
+# st.write(f'{st.session_state["add_phone_bills_show_form"]=}')
+# st.write(f'{st.session_state["new_month_sel"]=}')
+# st.write(f'{st.session_state["prev_month"]=}')
+# st.write(df_tmp)
+# st.write(df_tmp_prev)
+
+st.button('Внести данные', key='phone_bill_add_but', 
+                disabled=not st.session_state["authentication_status"] 
+                or st.session_state["add_phone_bills_show_form"]
+                or st.session_state["disabled_phone_bill_add_but"],
+                on_click=add_phone_bills_show_form)
+
+if st.session_state["add_phone_bills_show_form"]:
+    st.date_input('выберете любую дату в рамках нужного месяца', 
+                                    value=st.session_state["new_month_sel"], 
+                                    min_value=min(flt_year_df['date_eom']), 
+                                    max_value=date_eom(max(flt_year_df['date_eom'])+datetime.timedelta(days=1)),
+                                    key='form_month_sel'
+                                    , on_change=get_prev_month
+                                    )
+
     form = st.form(key="add_phone_bills")
-    form.subheader('Внесите данные')
-    new_month_sel = form.date_input('выберете любую дату в рамках нужного месяца', date_eom(max(flt_year_df['date_eom'])+datetime.timedelta(days=1)), min_value=min(flt_year_df['date_eom']), max_value=date_eom(max(flt_year_df['date_eom'])+datetime.timedelta(days=1)))
-
-    bill = []
+    form.subheader('Внесите данные') 
+                                
     for number in phones['number']:
-        cur_row = df_tmp[df_tmp['number'] == number].head(1)
-        name_str = f"{cur_row['owner'].iloc[0]}"
-        date_str = f"{cur_row['date_eom'].iloc[0].strftime('%d.%m.%Y')}"
-        sum_str = f"{cur_row['summ'].iloc[0]:,.2f}"
-        bill.append((number, form.text_input(f"**{name_str}**({number}) {date_str}: **{sum_str}** руб.", key=number)))
+        month_row = df_tmp[df_tmp['number'] == number].head(1)
+        sum_str = f"{month_row['summ'].iloc[0]:,.2f}" if len(month_row)==1 else "0"
+            
+        
+        prev_month_row = df_tmp_prev[df_tmp_prev['number'] == number].head(1)
+        prev_name_str = f"{prev_month_row['owner'].iloc[0]}" if len(prev_month_row)==1 else "0"
+        prev_date_str = f"{prev_month_row['date_eom'].iloc[0].strftime('%m.%Y')}" if len(prev_month_row)==1 else "0"
+        prev_sum_str = f"{prev_month_row['summ'].iloc[0]:,.2f}" if len(prev_month_row)==1 else "0"
 
-    if form.form_submit_button("Сохранить"):
-        form.empty()
-        st.session_state["phone_bill_add_but"]=False
-    if form.form_submit_button("Отменить"):
-        form.empty()
-        st.session_state["phone_bill_add_but"]=False
+        form.text_input(f"**{prev_name_str}**({number}) пред. мес *{prev_date_str}*: **{prev_sum_str}** руб.", placeholder=sum_str, key=number)
+    
+    form.form_submit_button("Сохранить", on_click=write_form_text)
+    form.form_submit_button("Отменить", on_click=clear_form_text)
+
+################################################################################
 ################################################################################
 
 st.subheader(f"За месяц")
@@ -140,8 +207,6 @@ for i in range(len(df_tmp)):
             int(df_tmp['summ'][i] - df_tmp['prev_summ'][i]),
             delta_color="inverse")
 
-
-
 st.write('подробно')
 if st.session_state["authentication_status"]:
     df_tmp = flt_df[['group','owner','number','summ', 'prev_summ']][flt_df['date_eom']==month_sel].sort_values(['group','owner','number']).set_index(['group','owner','number'])
@@ -154,8 +219,6 @@ if st.session_state["authentication_status"]:
         .apply(lambda _: df_tmp_font_color, subset=['изм.']))
 else:
     st.warning(log_info)
-
-
 
 st.subheader(f"Динамика расходов")
 yaxis_title = 'руб.'

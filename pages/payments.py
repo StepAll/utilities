@@ -12,7 +12,10 @@ from utilities import st_multiselect_empty, date_eom, color_cur_prev
 from utilities import auth
 
 
-
+if "add_phone_bills_show_form" not in st.session_state:
+   st.session_state["add_phone_bills_show_form"]=False
+else:
+    st.session_state["add_phone_bills_show_form"]=False
 
 @st.cache
 def get_payments(payments_gs:GSPage) -> pd.DataFrame:

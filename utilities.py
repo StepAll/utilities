@@ -15,6 +15,11 @@ from google_api import GSPage
 
 st.set_page_config(page_title='Household', page_icon='🟡')
 
+if "add_phone_bills_show_form" not in st.session_state:
+   st.session_state["add_phone_bills_show_form"]=False
+else:
+    st.session_state["add_phone_bills_show_form"]=False
+
 def date_eom(x:datetime):
     return (x.replace(day=1) + datetime.timedelta(days=32)).replace(day=1) - datetime.timedelta(days=1)
 
