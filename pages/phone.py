@@ -1,4 +1,5 @@
 import datetime
+import time
 from typing import List
 
 import streamlit as st
@@ -12,7 +13,7 @@ from utilities import fig_line_area, fig_bar
 from utilities import st_multiselect_empty, date_eom, color_cur_prev
 from utilities import auth
 
-@st.cache
+# @st.cache
 def get_phones(phone_bills_gs:GSPage, match_gs:GSPage) -> pd.DataFrame:
     service = get_google_service(phone_bills_gs.service_account_json, api='sheets')
     df_bills = get_gs_table(service, phone_bills_gs.gs_id, phone_bills_gs.page_name)
@@ -64,7 +65,9 @@ match_gs = GSPage(
             )
 
 df, phones = get_phones(phone_bills_gs, match_gs)
-first_empty_row_df = len(df) + 1 + phone_bills_gs.header_row_reserve
+
+if 'first_empty_row_df' not in st.session_state:
+    st.session_state['first_empty_row_df'] = len(df) + 1 + phone_bills_gs.header_row_reserve
 first_col_letter = phone_bills_gs.first_col_letter
 last_col_letter = phone_bills_gs.last_col_letter
 
@@ -112,8 +115,11 @@ def write_form_text():
             v_float = 0.0
         phone_bills_to_write.append([st.session_state["form_month_sel"].strftime('%d.%m.%Y'), number, v_float])
 
-    range = f'{first_col_letter}{first_empty_row_df}:{last_col_letter}{first_empty_row_df+len(phone_bills_to_write)-1}'
+    range = f"{first_col_letter}{st.session_state['first_empty_row_df']}:{last_col_letter}{st.session_state['first_empty_row_df'] +len(phone_bills_to_write)-1}"
     write_to_gs(phone_bills_gs, phone_bills_to_write, range)
+    st.session_state['first_empty_row_df'] += len(phone_bills_to_write)
+
+    st.success('Данные внесены')
 
     clear_form_text()
     get_prev_month()
@@ -139,7 +145,7 @@ else:
     st.session_state["disabled_phone_bill_add_but"] = False
 
 if "new_month_sel" not in st.session_state:
-    st.session_state["new_month_sel"]= date_eom(max(flt_year_df['date_eom'])+datetime.timedelta(days=1))
+    st.session_state["new_month_sel"]= max(flt_year_df['date_eom'])
     st.session_state["prev_month"]= date_eom(date_eom(st.session_state["new_month_sel"])-datetime.timedelta(days=32))
 
 if "add_phone_bills_show_form" not in st.session_state:
@@ -148,12 +154,6 @@ if "add_phone_bills_show_form" not in st.session_state:
 phones = phones[phones['is_active'] == 1].sort_values('number')
 df_tmp = flt_df[flt_df['date_eom']==datetime.datetime.combine(st.session_state["new_month_sel"], datetime.datetime.min.time())]
 df_tmp_prev = flt_df[flt_df['date_eom']==datetime.datetime.combine(st.session_state["prev_month"], datetime.datetime.min.time())]
-
-# st.write(f'{st.session_state["add_phone_bills_show_form"]=}')
-# st.write(f'{st.session_state["new_month_sel"]=}')
-# st.write(f'{st.session_state["prev_month"]=}')
-# st.write(df_tmp)
-# st.write(df_tmp_prev)
 
 st.button('Внести данные', key='phone_bill_add_but', 
                 disabled=not st.session_state["authentication_status"] 
