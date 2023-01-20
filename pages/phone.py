@@ -82,6 +82,9 @@ if st.session_state["authentication_status"]:
 elif st.session_state["authentication_status"] == False:
     with st.sidebar:
         st.error('Пользователь/пароль неверные')
+    st.session_state["add_phone_bills_show_form"] = False
+elif st.session_state["authentication_status"] == None:
+    st.session_state["add_phone_bills_show_form"] = False
 ################################################################################
 log_info = 'войдите в систему, чтобы увидеть персонализированную информацию'
 
