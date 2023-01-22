@@ -10,12 +10,9 @@ from google_api import GSPage
 from utilities import fig_line_area, fig_bar
 from utilities import st_multiselect_empty, date_eom, color_cur_prev
 from utilities import auth
+from utilities import set_bg_hack
 
 
-if "add_phone_bills_show_form" not in st.session_state:
-   st.session_state["add_phone_bills_show_form"]=False
-else:
-    st.session_state["add_phone_bills_show_form"]=False
 
 @st.cache
 def get_payments(payments_gs:GSPage) -> pd.DataFrame:
@@ -108,6 +105,14 @@ def graphics_set(flt_df:pd.DataFrame, metric_title:str, items:list=None) -> None
             st.plotly_chart(fig, use_container_width=True)
     return None
 
+set_bg_hack('bg_payments.png')
+
+
+if "add_phone_bills_show_form" not in st.session_state:
+   st.session_state["add_phone_bills_show_form"]=False
+else:
+    st.session_state["add_phone_bills_show_form"]=False
+
 # set constants
 GOOGLESHEET_ID = st.secrets['GOOGLESHEET_ID']
 PAYMENTS_PAGE_ID = st.secrets['PAYMENTS_PAGE_ID']
@@ -158,9 +163,10 @@ df_month['diff'] = df_month['summ'] - df_month['prev_summ']
 df_month['icon_diff'] = df_month['diff'].map(lambda x: f"↑{x:.2f}" if x>0 else f"↓{x:.2f}" if x<0 else '-')
 df_month['color_diff'] = df_month.apply(lambda x: color_cur_prev(x['summ'], x['prev_summ']), axis=1)
 
+
 col1, col2 = st.columns([1,4])
 with col2:
-    st.dataframe(df_month[['summ', 'icon_diff', 'summ_w_comm']].rename(columns={'summ':'сумма', 'icon_diff':'изм.', 'summ_w_comm':'сумма с комиссией'}) 
+    st.table(df_month[['summ', 'icon_diff', 'summ_w_comm']].rename(columns={'summ':'сумма', 'icon_diff':'изм.', 'summ_w_comm':'сумма с комиссией'})
                             .style
                             .format({'сумма':'{:8,.2f}', 'сумма с комиссией':'{:8,.2f}'})
                             .apply(lambda _: df_month['color_diff'], subset=['изм.'])

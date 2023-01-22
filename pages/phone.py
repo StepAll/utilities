@@ -12,6 +12,8 @@ from google_api import GSPage
 from utilities import fig_line_area, fig_bar
 from utilities import st_multiselect_empty, date_eom, color_cur_prev
 from utilities import auth
+from utilities import set_bg_hack
+
 
 # @st.cache
 def get_phones(phone_bills_gs:GSPage, match_gs:GSPage) -> pd.DataFrame:
@@ -38,6 +40,9 @@ def get_phones(phone_bills_gs:GSPage, match_gs:GSPage) -> pd.DataFrame:
     df_matches.columns = ['number', 'owner', 'group', 'is_active']
     df_matches['is_active'] = df_matches['is_active'].map(pd.to_numeric).fillna(0).map(int)
     return df, df_matches
+
+set_bg_hack('bg_phones.png')
+
 
 PHONE_GOOGLESHEET_ID = st.secrets['PHONE_GOOGLESHEET_ID']
 PHONE_BILLS_PAGE_ID = st.secrets['PHONE_BILLS_PAGE_ID']
@@ -216,7 +221,7 @@ if st.session_state["authentication_status"]:
     df_tmp['diff'] = df_tmp['summ'] - df_tmp['prev_summ']
     df_tmp['icon_diff'] = df_tmp['diff'].map(lambda x: f"↑{x:.2f}" if x>0 else f"↓{x:.2f}" if x<0 else '-')
     df_tmp_font_color = df_tmp.apply(lambda x: color_cur_prev(x['summ'], x['prev_summ']), axis=1)
-    st.dataframe(df_tmp[['summ', 'icon_diff']].rename(columns={'summ':'сумма', 'icon_diff':'изм.'})
+    st.table(df_tmp[['summ', 'icon_diff']].rename(columns={'summ':'сумма', 'icon_diff':'изм.'})
         .style
         .format({'сумма':'{:8,.2f}'})
         .apply(lambda _: df_tmp_font_color, subset=['изм.']))

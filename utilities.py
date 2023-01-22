@@ -1,5 +1,6 @@
 import datetime
 import yaml
+import base64
 
 from dataclasses import dataclass
 from typing import List
@@ -13,12 +14,8 @@ from google_api import get_google_service, get_gs_table
 from google_api import GSPage
 
 
-st.set_page_config(page_title='Household', page_icon='🟡')
 
-if "add_phone_bills_show_form" not in st.session_state:
-   st.session_state["add_phone_bills_show_form"]=False
-else:
-    st.session_state["add_phone_bills_show_form"]=False
+
 
 def date_eom(x:datetime):
     return (x.replace(day=1) + datetime.timedelta(days=32)).replace(day=1) - datetime.timedelta(days=1)
@@ -61,6 +58,11 @@ def fig_line_area(df:pd.DataFrame,
 
     fig.update_layout(title=title, xaxis_title=xaxis_title, yaxis_title=yaxis_title)
     fig.update_yaxes(rangemode="tozero")
+
+    fig.update_layout({'plot_bgcolor': 'rgba(255, 255, 255, 0.3)',
+                        'paper_bgcolor': 'rgba(255, 255, 255, 0.2)',
+                     })
+
     return fig
 
 def fig_bar(df:pd.DataFrame, 
@@ -87,7 +89,35 @@ def fig_bar(df:pd.DataFrame,
 
     fig.update_layout(title=title, xaxis_title=xaxis_title, yaxis_title=yaxis_title)
     fig.update_yaxes(rangemode="tozero")
+    fig.update_layout({'plot_bgcolor': 'rgba(255, 255, 255, 0.3)',
+                    'paper_bgcolor': 'rgba(255, 255, 255, 0.2)',
+                    })
     return fig
+
+
+
+def set_bg_hack(main_bg):
+    '''
+    A function to unpack an image from root folder and set as bg.
+
+    Returns
+    -------
+    The background.
+    '''
+    # set bg name
+    main_bg_ext = "png"
+        
+    st.markdown(
+         f"""
+         <style>
+         .stApp {{
+             background: url(data:image/{main_bg_ext};base64,{base64.b64encode(open(main_bg, "rb").read()).decode()});
+             background-size: cover
+         }}
+         </style>
+         """,
+         unsafe_allow_html=True
+     )
 
 
 @st.cache
@@ -125,6 +155,15 @@ def auth():
 
     st.session_state["name"], st.session_state["authentication_status"], st.session_state["username"] = authenticator.login('Войти', 'sidebar')
     return authenticator
+
+st.set_page_config(page_title='Household', page_icon='🟡')
+set_bg_hack('bg_utilities.png')
+
+if "add_phone_bills_show_form" not in st.session_state:
+   st.session_state["add_phone_bills_show_form"]=False
+else:
+    st.session_state["add_phone_bills_show_form"]=False
+
 
 # st.session_state initiation
 if 'authentication_status' not in st.session_state:
