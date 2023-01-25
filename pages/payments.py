@@ -166,9 +166,9 @@ df_month['color_diff'] = df_month.apply(lambda x: color_cur_prev(x['summ'], x['p
 
 col1, col2 = st.columns([1,4])
 with col2:
-    st.table(df_month[['summ', 'icon_diff', 'summ_w_comm']].rename(columns={'summ':'сумма', 'icon_diff':'изм.', 'summ_w_comm':'сумма с комиссией'})
+    st.table(df_month[['summ', 'icon_diff']].rename(columns={'summ':'сумма', 'icon_diff':'изм.'})
                             .style
-                            .format({'сумма':'{:8,.2f}', 'сумма с комиссией':'{:8,.2f}'})
+                            .format({'сумма':'{:8,.2f}'})
                             .apply(lambda _: df_month['color_diff'], subset=['изм.'])
                             )
 
